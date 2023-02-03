@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <limits>
 #include <ranges>
+#include <boost/integer.hpp>
 
 #include "coo_matrix.h"
 
@@ -22,12 +23,16 @@ Storing it with fill=0, only the following items actually need to be stored:
     - 2 0 3
 This is laid out in the data array as: [1] [] [2 0 3]
 With an index of the row locations:    0   1  1       4
-And an offset for the start column:    2   -  1
+And each row's starting subscript:     2   -  1
 The row location array has an additional entry at the end equal to data_size so the last entry doesn't have to be special-cased.
 The offset value for a blank row doesn't matter, but this implementation uses -1.
 */
-template<typename entry_t, typename index_t, std::size_t data_size, std::size_t index_size>
-struct csr_matrix {
+template<
+    typename entry_t,
+    std::size_t data_size,
+    std::size_t index_size,
+    typename index_t = typename boost::uint_value_t<data_size>::least
+> struct csr_matrix {
     using subscript_t = decltype(entry_t::i);
     using value_t = decltype(entry_t::value);
 
@@ -44,7 +49,7 @@ struct csr_matrix {
     /*
     - row_pos[i] is the storage location of the start of the i-th row.
       - making data[row_pos[i]] the first non-empty element of the i-th row.
-    - row_indent[i] is the j-index of that first non-empty element in the i-th row.
+    - row_indent[i] is the j-subscript of that first non-empty element in the i-th row.
       - That is, M[i, row_indent[i]] = data[row_pos[i]].
     - The size of a row i is implicit from row_pos[i+1] - row_pos[i]
       - Therefore an empty row is represented by having row_pos[i] == row_pos[i+1].
@@ -61,7 +66,7 @@ struct csr_matrix {
 
         subscript_t i = 0;
         subscript_t i_max = mat.i_range().second + 1;
-        while (i != i_max) {
+        while (i != i_max) { // looping this way to ensure correct wrap behavior
             row_pos[i] = data_index;
             auto jr = mat.j_range(i);
             if (jr) {
@@ -109,7 +114,7 @@ constexpr std::size_t csr_data_size_of(
     std::size_t total = 0;
     subscript_t i = 0;
     subscript_t i_max = mat.i_range().second + 1;
-    while (i != i_max) {
+    while (i != i_max) { // looping this way to ensure correct wrap behavior
         auto jr = mat.j_range(i);
         if (jr) {
             total += jr->second - jr->first + 1;
@@ -128,7 +133,6 @@ constexpr std::size_t csr_index_size_of(
 }
 
 /* use lambda closure trick to pass size info as method param rather than template param */
-template<typename index_t>
 consteval auto make_csr_matrix_from_gen(
     const auto coo_gen
 ) {
@@ -138,12 +142,11 @@ consteval auto make_csr_matrix_from_gen(
     constexpr auto coo_mat = coo_gen();
     constexpr auto data_size = csr_data_size_of(coo_mat);
     constexpr auto index_size = csr_index_size_of(coo_mat);
-    constexpr auto csr_mat = csr_matrix<entry_t, index_t, data_size, index_size>(coo_mat);
+    constexpr auto csr_mat = csr_matrix<entry_t, data_size, index_size>(coo_mat);
     return csr_mat;
 }
 
 /* use lambda closure trick to pass size info and fill value as method params rather than template params */
-template<typename index_t>
 consteval auto make_csr_matrix_from_gen(
     const auto arr_gen,
     const auto fill_gen
@@ -160,14 +163,15 @@ consteval auto make_csr_matrix_from_gen(
     constexpr auto coo_mat = coo_matrix<entry_t, entry_count>(coo_data, fill_value);
     constexpr auto data_size = csr_data_size_of(coo_mat);
     constexpr auto index_size = csr_index_size_of(coo_mat);
-    constexpr auto csr_mat = csr_matrix<entry_t, index_t, data_size, index_size>(coo_mat);
+    constexpr auto csr_mat = csr_matrix<entry_t, data_size, index_size>(coo_mat);
     return csr_mat;
 }
 
 
 #define GEN(VAL) []{return VAL;}
 // variadic so you get marginally better compiler errors when there's the wrong number of arguments
-#define make_csr_matrix(TYPE, ARR, FILL, ...) make_csr_matrix_from_gen<TYPE>(GEN(ARR), GEN(FILL) __VA_OPT__(,) __VA_ARGS__)
-#define make_csr_matrix_from_coo(TYPE, COO, ...) make_csr_matrix_from_gen<TYPE>(GEN(COO) __VA_OPT__(,) __VA_ARGS__)
+// TODO: variadic GEN argument wrapping
+#define make_csr_matrix(ARR, FILL, ...) make_csr_matrix_from_gen(GEN(ARR), GEN(FILL) __VA_OPT__(,) __VA_ARGS__)
+#define make_csr_matrix_from_coo(COO, ...) make_csr_matrix_from_gen(GEN(COO) __VA_OPT__(,) __VA_ARGS__)
 
 } // sparse
