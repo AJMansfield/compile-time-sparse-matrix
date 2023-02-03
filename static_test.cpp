@@ -17,6 +17,8 @@ consteval void test_normal_matrix() {
         {0,0,99},
     });
     constexpr auto csr_mat = sparse::make_csr_matrix(coo_data, -1);
+    static_assert(csr_mat.get(0,0) == 99);
+    static_assert(csr_mat.get(5,3) == 53);
 }
 
 consteval void test_coo_factory() {
@@ -36,7 +38,11 @@ consteval void test_coo_factory() {
         {0,0,99},
     });
     constexpr auto coo_mat = sparse::make_coo_matrix(coo_data, -1);
+    static_assert(coo_mat.get(0,0) == 99);
+    static_assert(coo_mat.get(5,3) == 53);
     constexpr auto csr_mat = sparse::make_csr_matrix_from_coo(coo_mat);
+    static_assert(csr_mat.get(0,0) == 99);
+    static_assert(csr_mat.get(5,3) == 53);
 }
 
 consteval void test_at_limits_of_uchar() {
