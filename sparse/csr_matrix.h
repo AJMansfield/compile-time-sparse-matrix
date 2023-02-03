@@ -27,7 +27,7 @@ And each row's starting subscript:     2   -  1
 The row location array has an additional entry at the end equal to data_size so the last entry doesn't have to be special-cased.
 The offset value for a blank row doesn't matter, but this implementation uses -1.
 */
-template<
+template <
     typename entry_t,
     std::size_t data_size,
     std::size_t index_size,
@@ -56,8 +56,9 @@ template<
     - row_pos[index_size] is the overall size of the data array
     */
 
-    template<auto entry_count>
-    constexpr csr_matrix(
+    template <
+        auto entry_count
+    > constexpr csr_matrix(
         const coo_matrix<entry_t, entry_count> & mat
     ) :
         fill_value(mat.fill_value)
@@ -106,8 +107,10 @@ template<
 };
 
 /* determine the size of the data array needed to store this matrix in csr form */
-template<typename entry_t, std::size_t entry_count>
-constexpr std::size_t csr_data_size_of(
+template <
+    typename entry_t,
+    auto entry_count
+> constexpr std::size_t csr_data_size_of(
     const coo_matrix<entry_t, entry_count> & mat
 ) {
     using subscript_t = decltype(entry_t::i);
@@ -125,8 +128,10 @@ constexpr std::size_t csr_data_size_of(
 }
 
 /* determine the size of the index arrays needed to store this matrix in csr form */
-template<typename entry_t, std::size_t entry_count>
-constexpr std::size_t csr_index_size_of(
+template <
+    typename entry_t,
+    auto entry_count
+> constexpr std::size_t csr_index_size_of(
     const coo_matrix<entry_t, entry_count> & mat
 ) {
     return mat.i_range().second + 1;
